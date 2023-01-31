@@ -355,7 +355,7 @@ public interface Continuation<R, E extends Exception> {
      * result continuation for the index-th result.  This should
      * be called exactly once for each int between 0 and num.
      *
-     * @param The index of this continuation
+     * @param index The index of this continuation
      */
     public Continuation getSubContinuation(final int index) {
       return new Continuation() {
