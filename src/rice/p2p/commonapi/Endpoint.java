@@ -148,7 +148,7 @@ public interface Endpoint extends NodeHandleReader {
    *
    * @param id The object's id.
    * @param maxRank The number of desired replicas.
-   * @param handle The root handle of the remove set
+   * @param root The root handle of the remove set
    * @param set The set of other nodes around the root handle
    */
   NodeHandleSet replicaSet(Id id, int maxRank, NodeHandle root, NodeHandleSet set);
