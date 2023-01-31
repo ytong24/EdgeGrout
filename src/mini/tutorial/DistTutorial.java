@@ -12,93 +12,112 @@ import rice.pastry.standard.RandomNodeIdFactory;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
+import java.util.List;
 
 public class DistTutorial {
+
+    public List<MyApp> apps;
 
     /**
      * This constructor sets up a PastryNode.  It will bootstrap to an
      * existing ring if it can find one at the specified location, otherwise
      * it will start a new ring.
      *
-     * @param bindport the local port to bind to
+     * @param bindport    the local port to bind to
      * @param bootaddress the IP:port of the node to boot from
-     * @param env the environment for these nodes
+     * @param env         the environment for these nodes
      */
-    public DistTutorial(int bindport, InetSocketAddress bootaddress, Environment env) throws Exception {
+    public DistTutorial(int bindport, InetSocketAddress bootaddress, Environment env, int numNodes) throws Exception {
+        apps = new ArrayList<>();
         // Generate the NodeIds Randomly
         NodeIdFactory nidFactory = new RandomNodeIdFactory(env);
 
         // construct the PastryNodeFactory, this is how we use rice.pastry.socket
         SocketPastryNodeFactory factory = new SocketPastryNodeFactory(nidFactory, bindport, env);
 
-        // This will return null if we there are no node at that location
-        NodeHandle bootHandle = factory.getNodeHandle(bootaddress);
+        for (int i = 0; i < numNodes; i++) {
+            // construct a node, passing the null boothandle on the first loop will
+            // cause the node to start its own ring
+            PastryNode node = factory.newNode();
 
-        // construct a node, passing the null boothandle on the first loop will
-        // cause the node to start its own ring
-        PastryNode node = factory.newNode();
+            // construct a new MyApp
+            MyApp app = new MyApp(node);
 
-        // construct a new MyApp
-        MyApp app = new MyApp(node);
+            this.apps.add(app);
 
-        node.boot(bootaddress);
+            node.boot(bootaddress);
 
-        // the node may require sending several messages to fully boot into the ring
-        synchronized (node) {
-            while (!node.isReady() && !node.joinFailed()) {
-                // delay so we don't busy-wait
-                node.wait(500);
+            // the node may require sending several messages to fully boot into the ring
+            synchronized (node) {
+                while (!node.isReady() && !node.joinFailed()) {
+                    // delay so we don't busy-wait
+                    node.wait(500);
+                }
+
+                // abort if can't join
+                if (node.joinFailed()) {
+                    throw new IOException("Could not join the FreePastry ring.  Reason: " + node.joinFailedReason());
+                }
             }
 
-            // abort if can't join
-            if(node.joinFailed()) {
-                throw new IOException("Could not join the FreePastry ring.  Reason: "+node.joinFailedReason());
-            }
+            System.out.println("Finished creating new node " + node);
         }
-
-        System.out.println("Finished creating new node "+node);
-
 
 
         // wait 10 seconds
         env.getTimeSource().sleep(10000);
 
-        // as long as we're not the first node
-        if(bootHandle != null) {
-            // route 10 messages
-            for(int i = 0; i < 10; i++) {
-                // pick a key at random
-                Id randId = nidFactory.generateNodeId();
 
-                // send to that key
-                app.routeMyMsg(randId);
+//        MyApp foo = this.apps.get(0);
+//        System.out.println(((PastryNode)foo.node).getRoutingTable().printSelf());
 
-                // wait a sec
-                env.getTimeSource().sleep(1000);
-            }
+//        System.exit(0);
 
-            // wait 10 seconds
-            env.getTimeSource().sleep(10000);
+        // route 10 messages
+//        for (int i = 0; i < 10; i++) {
+//            for(MyApp app : apps) {
+//                // pick a key at random
+//                Id randId = nidFactory.generateNodeId();
+//
+//                // send to that key
+//                app.routeMyMsg(randId);
+//
+//                // wait a sec
+//                env.getTimeSource().sleep(100);
+//            }
+//        }
 
-            // send directly to my leafset
-            LeafSet leafSet = node.getLeafSet();
+        // wait 1 seconds
+        env.getTimeSource().sleep(1000);
 
-            // this is a typical loop to cover your leafset.  Note that if the leafset
-            // overlaps, then duplicate nodes will be sent to twice
-            for(int i = -leafSet.ccwSize(); i <= leafSet.cwSize(); i++) {
-                if(i == 0) {
-                    // don't send to self
-                    continue;
-                }
-                // select the item
-                NodeHandle nh = leafSet.get(i);
+        // for each app
+//        for(MyApp app : apps) {
+//            PastryNode node = (PastryNode) app.getNode();
+//            // send directly to my leafset
+//            LeafSet leafSet = node.getLeafSet();
+//
+//            // this is a typical loop to cover your leafset.  Note that if the leafset
+//            // overlaps, then duplicate nodes will be sent to twice
+//            for (int i = -leafSet.ccwSize(); i <= leafSet.cwSize(); i++) {
+//                if (i == 0) {
+//                    // don't send to self
+//                    continue;
+//                }
+//                // select the item
+//                NodeHandle nh = leafSet.get(i);
+//
+//                // send the message directly to the node
+//                app.routeMyMsgDirect(nh);
+//
+//                // wait a sec
+//                env.getTimeSource().sleep(1000);
+//            }
+//        }
 
-                // send the message directly to the node
-                app.routeMyMsgDirect(nh);
-
-                // wait a sec
-                env.getTimeSource().sleep(1000);
-            }
+        env.getTimeSource().sleep(14000);
+        for(MyApp app : apps) {
+            app.cancelTask();
         }
     }
 
@@ -111,17 +130,14 @@ public class DistTutorial {
 
 
         int BINDPORT = 9001;
-        int BINDPORT2 = 9002;
         int BOOTPORT = 9001;
         try {
-            InetAddress bootaddr = InetAddress.getByName("10.4.0.13");
+            InetAddress bootaddr = InetAddress.getByName("10.239.7.133");
 //            System.out.println(bootaddr.getHostName());
-
             InetSocketAddress bootSocketAddr = new InetSocketAddress(bootaddr, BOOTPORT);
-
+            int numNodes = 1;
             // launch our node!
-            DistTutorial dt = new DistTutorial(BINDPORT, bootSocketAddr, env);
-            DistTutorial dt2 = new DistTutorial(BINDPORT2, bootSocketAddr, env);
+            DistTutorial dt = new DistTutorial(BINDPORT, bootSocketAddr, env, numNodes);
         } catch (Exception e) {
             e.printStackTrace();
         }
