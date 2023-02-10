@@ -23,7 +23,7 @@ public class SimpleAggrScribeClient implements ScribeMultiClient, Application {
     private SimpleAggrTreeNode treeNode;
 
     // how many times does root publish
-    private long publishCount;
+    private long publishRound;
 
     // use it to cancel publish task when I'm not root anymore
     private Boolean isRoot;
@@ -70,8 +70,10 @@ public class SimpleAggrScribeClient implements ScribeMultiClient, Application {
                     // if role change
                     this.isRoot = isRoot();
                     if(this.isRoot) {
+                        System.out.println(LOG_PREFIX + " startPublishTask()...");
                         startPublishTask();
                     } else {
+                        System.out.println(LOG_PREFIX + " cancelPublishTask()...");
                         cancelPublishTask();
                     }
                 }
@@ -110,15 +112,18 @@ public class SimpleAggrScribeClient implements ScribeMultiClient, Application {
             System.out.println(LOG_PREFIX + " receive " + msg.message +  " from " + msg.from);
 
             if(isRoot()) {
-                System.out.println(LOG_PREFIX + " I'm ROOT !!");
+                System.out.println(LOG_PREFIX + " I'm ROOT !! My publishRound is: " + this.publishRound);
             }
+
+            // update publishRound
+            this.publishRound = Math.max(this.publishRound, msg.publishRound);
 
             synchronized (this.treeNode) {
                 if (this.treeNode.updateChild(msg.treeNode)) {
                     // if an update happen
                     System.out.println(LOG_PREFIX + " update child tree node " + msg.treeNode.getMe());
                     if (isRoot()) {
-                        System.out.println(LOG_PREFIX + " after " + this.publishCount + " rounds of publish:");
+                        System.out.println(LOG_PREFIX + " after " + this.publishRound + " rounds of publish. Print tree:");
                         this.treeNode.printTreeAsRoot();
                     }
                 } else {
@@ -130,7 +135,7 @@ public class SimpleAggrScribeClient implements ScribeMultiClient, Application {
 
     private void sendMulticast() {
         System.out.println(LOG_PREFIX +" broadcasting...");
-        SimpleAggrScribeContent scribeMessages = new SimpleAggrScribeContent(this.endpoint.getLocalNodeHandle());
+        SimpleAggrScribeContent scribeMessages = new SimpleAggrScribeContent(this.endpoint.getLocalNodeHandle(), this.publishRound);
         this.scribe.publish(this.topic, scribeMessages);
     }
 
@@ -152,9 +157,13 @@ public class SimpleAggrScribeClient implements ScribeMultiClient, Application {
 
             if(req.from.equals(this.endpoint.getLocalNodeHandle())) {
                 // DO NOT send to myself
-                ++this.publishCount;
+                ++this.publishRound;
                 return;
             }
+
+            // update publishRound according to content
+            // TODO: whether we need to synchronize publishRound?
+            this.publishRound = Math.max(req.publishRound, this.publishRound);
 
             synchronized (this.treeNode) {
                 // tell my parent node my NodeId and my children's NodeId
@@ -170,7 +179,7 @@ public class SimpleAggrScribeClient implements ScribeMultiClient, Application {
                     return;
                 }
 
-                SimpleAggrMsg message = new SimpleAggrMsg(this.id, this.treeNode.getParent(), "HI", this.treeNode);
+                SimpleAggrMsg message = new SimpleAggrMsg(this.id, this.treeNode.getParent(), "HI", this.treeNode, this.publishRound);
                 this.endpoint.route(this.treeNode.getParent(), message, null);
             }
         }

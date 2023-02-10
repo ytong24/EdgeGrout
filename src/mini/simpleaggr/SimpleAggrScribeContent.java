@@ -7,7 +7,15 @@ public class SimpleAggrScribeContent implements ScribeContent {
 
     protected NodeHandle from;
 
+    protected long publishRound;
+
     public SimpleAggrScribeContent(NodeHandle from) {
-        this.from = from;
+        this(from, -1);
     }
+
+    public SimpleAggrScribeContent(NodeHandle from, long publishRound) {
+        this.from = from;
+        this.publishRound = publishRound;
+    }
+
 }

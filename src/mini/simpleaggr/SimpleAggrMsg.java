@@ -20,15 +20,22 @@ public class SimpleAggrMsg implements Message {
 
     SimpleAggrTreeNode treeNode;
 
+    long publishRound;
+
     public SimpleAggrMsg(Id from, Id to, String message) {
         this(from, to, message, null);
     }
 
     public SimpleAggrMsg(Id from, Id to, String message, SimpleAggrTreeNode treeNode) {
+        this(from, to, message, treeNode, -1);
+    }
+
+    public SimpleAggrMsg(Id from, Id to, String message, SimpleAggrTreeNode treeNode, long publishRound) {
         this.from = from;
         this.to = to;
         this.message = message;
         this.treeNode = treeNode;
+        this.publishRound = publishRound;
     }
 
     @Override
