@@ -44,7 +44,6 @@ public class SimpleAggrTreeNode implements Serializable {
         Id childId = child.getMe();
         // check whether the child is newer than my record
         if (this.childrenMap.containsKey(childId) &&
-                this.childrenMap.get(childId) != null &&
                 this.childrenMap.get(childId).getLatestVersion() >= child.getLatestVersion()) {
             // my record is newer than child, do not update
             return false;
@@ -53,12 +52,6 @@ public class SimpleAggrTreeNode implements Serializable {
         // update latest version
         this.latestVersion = this.timeSource.currentTimeMillis();
         return true;
-    }
-
-    public void addNewChild(Id id) {
-        if (!this.childrenMap.containsKey(id)) {
-            this.childrenMap.put(id, null);
-        }
     }
 
     public Id getMe() {
