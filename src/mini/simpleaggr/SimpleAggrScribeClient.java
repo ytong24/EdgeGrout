@@ -1,5 +1,7 @@
 package mini.simpleaggr;
 
+import rice.environment.time.TimeSource;
+import rice.environment.time.simple.SimpleTimeSource;
 import rice.p2p.commonapi.*;
 import rice.p2p.scribe.*;
 import rice.pastry.PastryNode;
@@ -23,6 +25,11 @@ public class SimpleAggrScribeClient implements ScribeMultiClient, Application {
     // how many times does root publish
     private long publishCount;
 
+    // use it to cancel publish task when I'm not root anymore
+    private Boolean isRoot;
+
+    private TimeSource timeSource;
+
     public SimpleAggrScribeClient(PastryNode node) {
         String namePrefix = "SimpleAggr";
         this.endpoint = node.buildEndpoint(this, namePrefix+"Instance");
@@ -35,6 +42,9 @@ public class SimpleAggrScribeClient implements ScribeMultiClient, Application {
 
         this.treeNode = new SimpleAggrTreeNode(this.id);
 
+        this.isRoot = false;
+        this.timeSource = new SimpleTimeSource();
+
         this.endpoint.register();
     }
 
@@ -43,6 +53,30 @@ public class SimpleAggrScribeClient implements ScribeMultiClient, Application {
         @Override
         public int getPriority() {
             return MAX_PRIORITY;
+        }
+    }
+
+    /**
+     * check whether I'm the root.
+     * if I become a root, I need to startPublishTask()
+     * if I am not a root anymore, I need to cancelPublishTask()
+     * @throws InterruptedException
+     */
+    public void checkIsRoot() throws InterruptedException {
+        // TODO: do i need to change all isRoot() to this.isRoot in this file?
+        while (true) {
+            synchronized (this.isRoot) {
+                if(this.isRoot != isRoot()) {
+                    // if role change
+                    this.isRoot = isRoot();
+                    if(this.isRoot) {
+                        startPublishTask();
+                    } else {
+                        cancelPublishTask();
+                    }
+                }
+            }
+            this.timeSource.sleep(5000);
         }
     }
 
@@ -74,6 +108,10 @@ public class SimpleAggrScribeClient implements ScribeMultiClient, Application {
                 return;
             }
             System.out.println(LOG_PREFIX + " receive " + msg.message +  " from " + msg.from);
+
+            if(isRoot()) {
+                System.out.println(LOG_PREFIX + " I'm ROOT !!");
+            }
 
             synchronized (this.treeNode) {
                 if (this.treeNode.updateChild(msg.treeNode)) {
@@ -120,15 +158,18 @@ public class SimpleAggrScribeClient implements ScribeMultiClient, Application {
 
             synchronized (this.treeNode) {
                 // tell my parent node my NodeId and my children's NodeId
-                // TODO: this.getParent() might be null. Need to solve it.
-                if (this.treeNode.getParent() == null || !this.treeNode.getParent().equals(this.getParent().getId())) {
+                // this.getParent() might be null
+                if (this.getParent() != null &&
+                        (this.treeNode.getParent() == null ||
+                                !this.treeNode.getParent().equals(this.getParent().getId()))) {
                     this.treeNode.setParent(this.getParent().getId());
                 }
 
-                // set children
-                for (NodeHandle childHandle : this.getChildren()) {
-                    this.treeNode.addNewChild(childHandle.getId());
+                if(this.treeNode.getParent() == null) {
+                    System.out.println(LOG_PREFIX + " isRoot() == " + isRoot() + ". No need to send reply the scribe content.");
+                    return;
                 }
+
                 SimpleAggrMsg message = new SimpleAggrMsg(this.id, this.treeNode.getParent(), "HI", this.treeNode);
                 this.endpoint.route(this.treeNode.getParent(), message, null);
             }

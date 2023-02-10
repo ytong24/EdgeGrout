@@ -74,13 +74,20 @@ public class Main {
         }
         // After subscribe, we need to wait for a while to let the subscribe process finish
         env.getTimeSource().sleep(5000);
-//        env.getTimeSource().sleep(90000);
 
-        // we DON'T need to startPublishTask to get a ROOT
-        SimpleAggrScribeClient root = getRoot(apps);
-        if(root != null) {
-            System.out.println("root is " + this.apps.indexOf(root));
-            root.startPublishTask();
+        // start a thread to check who is the root and to start/cancel a publishTask
+        for(SimpleAggrScribeClient app : this.apps) {
+            Thread thread = new Thread(){
+                public void run(){
+                    try {
+                        app.checkIsRoot();
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            };
+
+            thread.start();
         }
     }
 
@@ -118,10 +125,12 @@ public class Main {
         int BOOTPORT = 9001;
         try {
             int BINDPORT = Integer.parseInt(args[0]);
+//            int numNodes = 10;
+            int numNodes = Integer.parseInt(args[1]);
             InetAddress bootaddr = InetAddress.getLocalHost();
 //            InetAddress bootaddr = InetAddress.getByName("10.4.0.13");
             InetSocketAddress bootSocketAddr = new InetSocketAddress(bootaddr, BOOTPORT);
-            int numNodes = 120;
+
             // launch our node!
             new Main(BINDPORT, bootSocketAddr, env, numNodes);
         } catch (Exception e) {
