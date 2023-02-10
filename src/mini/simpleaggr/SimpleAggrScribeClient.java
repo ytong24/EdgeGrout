@@ -11,20 +11,29 @@ public class SimpleAggrScribeClient implements ScribeMultiClient, Application {
 
     private final Scribe scribe;
     private final Topic topic;
-    protected Endpoint endpoint;
+    protected final Endpoint endpoint;
+    private final Id id;
 
     private CancellableTask publishTask;
 
     private final String LOG_PREFIX;
 
+    private SimpleAggrTreeNode treeNode;
+
+    // how many times does root publish
+    private long publishCount;
+
     public SimpleAggrScribeClient(PastryNode node) {
         String namePrefix = "SimpleAggr";
         this.endpoint = node.buildEndpoint(this, namePrefix+"Instance");
-        this.LOG_PREFIX = "Node " + this.endpoint.getLocalNodeHandle() + ":";
+        this.id = this.endpoint.getId();
+        this.LOG_PREFIX = "Node " + this.id + ":";
 
         this.scribe = new ScribeImpl(node, namePrefix+"ScribeInstance");
 
         this.topic = new Topic(new PastryIdFactory(node.getEnvironment()), namePrefix);
+
+        this.treeNode = new SimpleAggrTreeNode(this.id);
 
         this.endpoint.register();
     }
@@ -65,6 +74,19 @@ public class SimpleAggrScribeClient implements ScribeMultiClient, Application {
                 return;
             }
             System.out.println(LOG_PREFIX + " receive " + msg.message +  " from " + msg.from);
+
+            synchronized (this.treeNode) {
+                if (this.treeNode.updateChild(msg.treeNode)) {
+                    // if an update happen
+                    System.out.println(LOG_PREFIX + " update child tree node " + msg.treeNode.getMe());
+                    if (isRoot()) {
+                        System.out.println(LOG_PREFIX + " after " + this.publishCount + " rounds of publish:");
+                        this.treeNode.printTreeAsRoot();
+                    }
+                } else {
+                    System.out.println(LOG_PREFIX + " NO need to update child tree node " + msg.treeNode.getMe());
+                }
+            }
         }
     }
 
@@ -88,13 +110,28 @@ public class SimpleAggrScribeClient implements ScribeMultiClient, Application {
     public void deliver(Topic topic, ScribeContent content) {
         if(content instanceof SimpleAggrScribeContent) {
             SimpleAggrScribeContent req = (SimpleAggrScribeContent) content;
-            NodeHandle from = req.from;
             System.out.println(LOG_PREFIX +" receive scribe message from " + req.from);
 
-            // TODO: tell the "from" node my NodeId and my children's NodeId
-            // TEST: send message back to from
-            SimpleAggrMsg message = new SimpleAggrMsg(this.endpoint.getId(), from.getId(), "HI");
-            this.endpoint.route(from.getId(), message, null);
+            if(req.from.equals(this.endpoint.getLocalNodeHandle())) {
+                // DO NOT send to myself
+                ++this.publishCount;
+                return;
+            }
+
+            synchronized (this.treeNode) {
+                // tell my parent node my NodeId and my children's NodeId
+                // TODO: this.getParent() might be null. Need to solve it.
+                if (this.treeNode.getParent() == null || !this.treeNode.getParent().equals(this.getParent().getId())) {
+                    this.treeNode.setParent(this.getParent().getId());
+                }
+
+                // set children
+                for (NodeHandle childHandle : this.getChildren()) {
+                    this.treeNode.addNewChild(childHandle.getId());
+                }
+                SimpleAggrMsg message = new SimpleAggrMsg(this.id, this.treeNode.getParent(), "HI", this.treeNode);
+                this.endpoint.route(this.treeNode.getParent(), message, null);
+            }
         }
     }
 

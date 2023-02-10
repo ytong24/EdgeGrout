@@ -18,10 +18,17 @@ public class SimpleAggrMsg implements Message {
      */
     String message;
 
+    SimpleAggrTreeNode treeNode;
+
     public SimpleAggrMsg(Id from, Id to, String message) {
+        this(from, to, message, null);
+    }
+
+    public SimpleAggrMsg(Id from, Id to, String message, SimpleAggrTreeNode treeNode) {
         this.from = from;
         this.to = to;
         this.message = message;
+        this.treeNode = treeNode;
     }
 
     @Override

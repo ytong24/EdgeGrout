@@ -74,11 +74,14 @@ public class Main {
         }
         // After subscribe, we need to wait for a while to let the subscribe process finish
         env.getTimeSource().sleep(5000);
+//        env.getTimeSource().sleep(90000);
 
         // we DON'T need to startPublishTask to get a ROOT
         SimpleAggrScribeClient root = getRoot(apps);
-        System.out.println("root is " + this.apps.indexOf(root));
-        root.startPublishTask();
+        if(root != null) {
+            System.out.println("root is " + this.apps.indexOf(root));
+            root.startPublishTask();
+        }
     }
 
     /**
@@ -96,7 +99,7 @@ public class Main {
 
         // get the root
         SimpleAggrScribeClient app = appMap.get(seed);
-        while (!app.isRoot()) {
+        while (app != null && !app.isRoot()) {
             seed = app.getParent();
             app = appMap.get(seed);
         }
@@ -111,12 +114,14 @@ public class Main {
         env.getParameters().setString("nat_search_policy", "never");
 
 
-        int BINDPORT = 9001;
+//        int BINDPORT = 9001;
         int BOOTPORT = 9001;
         try {
+            int BINDPORT = Integer.parseInt(args[0]);
             InetAddress bootaddr = InetAddress.getLocalHost();
+//            InetAddress bootaddr = InetAddress.getByName("10.4.0.13");
             InetSocketAddress bootSocketAddr = new InetSocketAddress(bootaddr, BOOTPORT);
-            int numNodes = 10;
+            int numNodes = 120;
             // launch our node!
             new Main(BINDPORT, bootSocketAddr, env, numNodes);
         } catch (Exception e) {
