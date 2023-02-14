@@ -1,33 +1,38 @@
 package mini.simpleaggr;
 
-import rice.environment.time.TimeSource;
-import rice.environment.time.simple.SimpleTimeSource;
 import rice.p2p.commonapi.Id;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class SimpleAggrTreeNode implements Serializable {
     private Id me;
     private Id parent;
     private Map<Id, SimpleAggrTreeNode> childrenMap;
 
-    // timeSource is not Serializable, make it transient
-    transient private TimeSource timeSource;
+    // record the latest version that an id inform me. Use it to delete outdated children.
+    transient private Map<Id, Long> lastInformVersionMap;
+
     // latest version of current node
-    private long latestVersion;
+    private AtomicLong version;
+
+    // if I don't hear from a child for OUTDATED_DIFF rounds, I would clear it
+    transient private final long OUTDATED_DIFF = 3;
 
     public SimpleAggrTreeNode(Id me) {
-        this(me, null);
+        this(me, null, 0);
     }
 
-    public SimpleAggrTreeNode(Id me, Id parent) {
+    public SimpleAggrTreeNode(Id me, Id parent, long version) {
         this.me = me;
         this.parent = parent;
+        this.version = new AtomicLong(version);
         this.childrenMap = new HashMap<>();
-        this.timeSource = new SimpleTimeSource();
-        this.latestVersion = this.timeSource.currentTimeMillis();
+        this.lastInformVersionMap = new HashMap<>();
     }
 
     /**
@@ -40,18 +45,49 @@ public class SimpleAggrTreeNode implements Serializable {
      *
      * @return false if no update is committed. true if there is an update.
      */
-    public boolean updateChild(SimpleAggrTreeNode child) {
+    public boolean updateChild(SimpleAggrTreeNode child, long curPublishRound) {
         Id childId = child.getMe();
+        // update the lastInformMap
+        this.lastInformVersionMap.put(childId, Math.max(curPublishRound, this.lastInformVersionMap.getOrDefault(childId, (long)-1)));
         // check whether the child is newer than my record
         if (this.childrenMap.containsKey(childId) &&
-                this.childrenMap.get(childId).getLatestVersion() >= child.getLatestVersion()) {
+                this.childrenMap.get(childId).getVersion() >= child.getVersion()) {
             // my record is newer than child, do not update
             return false;
         }
         this.childrenMap.put(childId, child);
         // update latest version
-        this.latestVersion = this.timeSource.currentTimeMillis();
+        this.version.incrementAndGet();
         return true;
+    }
+
+    /**
+     * clear outdated children from my children collections
+     *
+     * @param curPublishRound current publish round to call this method
+     * @return list of outdated children ids
+     */
+    public List<Id> clearOutdatedChildren(long curPublishRound) {
+        List<Id> outdatedChildren = new ArrayList<>();
+        for(Id childId : this.lastInformVersionMap.keySet()) {
+            if(curPublishRound - this.lastInformVersionMap.get(childId) > OUTDATED_DIFF) {
+                // doesn't hear from a child for many rounds
+                outdatedChildren.add(childId);
+            }
+        }
+
+        if(!outdatedChildren.isEmpty()) {
+            for(Id outdatedChildId : outdatedChildren) {
+                // update lastInformVersionMap
+                this.lastInformVersionMap.remove(outdatedChildId);
+                // update childrenMap
+                this.childrenMap.remove(outdatedChildId);
+            }
+            // update version
+            this.version.incrementAndGet();
+        }
+
+        return outdatedChildren;
     }
 
     public Id getMe() {
@@ -64,16 +100,17 @@ public class SimpleAggrTreeNode implements Serializable {
 
     public void setParent(Id parent) {
         this.parent = parent;
-        // update latest version
-        this.latestVersion = this.timeSource.currentTimeMillis();
+        // update version
+        this.version.incrementAndGet();
     }
 
     public Map<Id, SimpleAggrTreeNode> getChildrenMap() {
         return childrenMap;
     }
 
-    public long getLatestVersion() {
-        return latestVersion;
+    public long getVersion() {
+//        return version;
+        return this.version.get();
     }
 
     /**
@@ -100,7 +137,6 @@ public class SimpleAggrTreeNode implements Serializable {
         }
 
         for (Id childId : curNode.childrenMap.keySet()) {
-//            System.out.println(child);
             recursivelyPrintChildren(childId, curNode.childrenMap.get(childId), recursionDepth + 1);
         }
     }
