@@ -1,7 +1,7 @@
 package connected_component;
 
-import rice.environment.time.TimeSource;
-import rice.environment.time.simple.SimpleTimeSource;
+import connected_component.graph.Partition;
+import connected_component.graph.PartitionPropagationMessage;
 import rice.p2p.commonapi.*;
 import rice.p2p.scribe.*;
 import rice.pastry.PastryNode;
@@ -21,13 +21,13 @@ public class ConnectedComponentNode implements ScribeMultiClient, Application {
     private final String LOG_PREFIX;
 
     // how many times does root publish
-    private long publishRound;
+    private long superstepRound;
 
-    private TimeSource timeSource;
-
+    // the partition in this node
+    private Partition graphPartition;
 
     // record how many responses does root receive in a round
-    private AtomicInteger receivedMessagesCount = new AtomicInteger(0);
+    private AtomicInteger testReceivedMessagesCount = new AtomicInteger(0);
 
     public ConnectedComponentNode(PastryNode node) {
         String namePrefix = "ConnectedComponent";
@@ -39,9 +39,9 @@ public class ConnectedComponentNode implements ScribeMultiClient, Application {
 
         this.topic = new Topic(new PastryIdFactory(node.getEnvironment()), namePrefix);
 
-        this.publishRound = 0;
+        this.superstepRound = 0;
 
-        this.timeSource = new SimpleTimeSource();
+        this.graphPartition = new Partition();
 
         this.endpoint.register();
     }
@@ -50,26 +50,26 @@ public class ConnectedComponentNode implements ScribeMultiClient, Application {
      * Build a part of the graph according to the adjacency list
      * @param adjacencyList the part of graph that assign to this worker
      */
-    public void buildGraph(Map<String, Set<String>> adjacencyList) {
-        // TODO: create an efficient data structure to store topology information and node handlers of neighbor vertices
+    public void buildGraphPartition(Map<String, Set<String>> adjacencyList) {
+        // create an efficient data structure to store topology information and node handlers of neighbor vertices
+        graphPartition.buildPartitionFromAdjacencyList(adjacencyList);
     }
 
     /**
      * Start super steps until all vertices vote for halt
      */
     public void startEngine() {
-        while(true) {
+//        while(true) {
             // TODO: trigger next super step
             triggerNextSuperStep();
             // TODO: if all vertices vote for halt, break;
-        }
+//        }
     }
 
     public void triggerNextSuperStep() {
         // TODO: use this.scribe to publish super step content
-//        this.publishTask = this.endpoint.scheduleMessage(new PublishContent(), 5000, 5000);
-        System.out.println(LOG_PREFIX + " broadcasting...");
-        SuperStepTriggerContent scribeMessages = new SuperStepTriggerContent(this.endpoint.getLocalNodeHandle(), this.publishRound + 1);
+        System.out.println(LOG_PREFIX + " trigger next super step...");
+        SuperStepTriggerContent scribeMessages = new SuperStepTriggerContent(this.endpoint.getLocalNodeHandle(), this.superstepRound + 1);
         this.scribe.publish(this.topic, scribeMessages);
     }
 
@@ -84,22 +84,22 @@ public class ConnectedComponentNode implements ScribeMultiClient, Application {
 
     @Override
     public void deliver(Id id, Message message) {
-        if (message instanceof PropagateMsg) {
-            PropagateMsg msg = (PropagateMsg) message;
-            if (!msg.to.equals(this.endpoint.getId())) {
-                // not my message
-                return;
-            }
-            System.out.println(LOG_PREFIX + " receive " + msg.message + " from " + msg.from);
-            this.receivedMessagesCount.incrementAndGet();
-
-            if (isRoot()) {
-                System.out.println(LOG_PREFIX + " I'm ROOT !! My publishRound is: " + this.publishRound + ". Receive " + this.receivedMessagesCount.get() + " responses in this round");
-            }
-
-            // update publishRound
-            this.publishRound = Math.max(this.publishRound, msg.publishRound);
-        }
+//        if (message instanceof PropagateContent) {
+//            PropagateContent msg = (PropagateContent) message;
+//            if (msg.to != null && !msg.to.equals(this.endpoint.getId())) {
+//                // not my message
+//                return;
+//            }
+//            System.out.println(LOG_PREFIX + " receive message from " + msg.from);
+//            this.receivedMessagesCount.incrementAndGet();
+//
+//            if (isRoot()) {
+//                System.out.println(LOG_PREFIX + " I'm ROOT !! My publishRound is: " + this.superstepRound + ". Receive " + this.receivedMessagesCount.get() + " responses in this round");
+//            }
+//
+//            // update publishRound
+//            this.superstepRound = Math.max(this.superstepRound, msg.superstepRound);
+//        }
     }
 
     @Override
@@ -116,12 +116,16 @@ public class ConnectedComponentNode implements ScribeMultiClient, Application {
     public void deliver(Topic topic, ScribeContent content) {
         if (content instanceof SuperStepTriggerContent) {
             // TODO: propagate
-
+            PartitionPropagationMessage propagationMessage = graphPartition.getPartitionPropagationMessage();
+            PropagateContent propagatePublishContent = new PropagateContent(this.id, propagationMessage, superstepRound);
+            this.scribe.publish(this.topic, propagatePublishContent);
             // TODO: get message
 
             // TODO: update
 
             // TODO: vote for halt
+
+            return;
 //            SuperStepContent req = (SuperStepContent) content;
 //            System.out.println(LOG_PREFIX + " receive scribe message from " + req.from);
 //
@@ -154,6 +158,17 @@ public class ConnectedComponentNode implements ScribeMultiClient, Application {
 //                ConnectedComponentMsg message = new ConnectedComponentMsg(this.id, this.treeNode.getParent(), "HI", this.treeNode, this.publishRound);
 //                this.endpoint.route(this.treeNode.getParent(), message, null);
 //            }
+        }
+
+        if(content instanceof PropagateContent) {
+            PropagateContent propagateContent = (PropagateContent)content;
+            if(isRoot()) {
+                System.out.println("Receive propagation content from: " + propagateContent.from);
+                System.out.println(propagateContent.message);
+                testReceivedMessagesCount.addAndGet((int) propagateContent.message.getRecordsNum());
+                System.out.println("Total Vertices Number: " + testReceivedMessagesCount.get());
+            }
+            return;
         }
     }
 

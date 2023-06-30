@@ -11,10 +11,7 @@ import rice.pastry.standard.RandomNodeIdFactory;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class Main {
 
@@ -35,7 +32,7 @@ public class Main {
      * @param numNodes the number of nodes to create in this JVM
      * @param env the Environment
      */
-    public Main(int bindport, InetSocketAddress bootaddress, Environment env, int numNodes) throws Exception {
+    public Main(int bindport, InetSocketAddress bootaddress, Environment env, int numNodes, String inputFile) throws Exception {
         this.apps = new ArrayList<>();
         // Generate the NodeIds Randomly
         NodeIdFactory nidFactory = new RandomNodeIdFactory(env);
@@ -70,23 +67,30 @@ public class Main {
             System.out.println("Finished creating new node: " + node);
         }
 
-        // for the first app subscribe then start the publishtask
-
         for(ConnectedComponentNode app : this.apps) {
             app.subscribe();
         }
 
         // TODO: asynchronously read graph file, get the topology of the whole graph.
+        Map<String, Set<String>> graph = GraphBuilder.getAdjacencyListFromFile(inputFile);
+        List<Map<String, Set<String>>> graphPartitions = GraphBuilder.splitGraph(graph, numNodes-1);
 
         // After subscribe, we need to wait for a while to let the subscribe process finish
         env.getTimeSource().sleep(5000);
 
-        // TODO: check each app is the root or not. if it's not root, assign a part of graph to it.
-//        for(ConnectedComponentClient app : this.apps) {
-//            if(app.isRoot())
-//        }
+        // check each app is the root or not. if it's not root, assign a part of graph to it.
+        ConnectedComponentNode root = null;
+        Iterator<Map<String, Set<String>>> graphPartitionIterator = graphPartitions.iterator();
+        for(ConnectedComponentNode app : this.apps) {
+            if(app.isRoot()) root = app;
+            else {
+                app.buildGraphPartition(graphPartitionIterator.next());
+            }
+        }
 
         // TODO: trigger a publish task in the root. wait for the end.
+        assert root != null;
+        root.startEngine();
 
         // TODO: get the output from the root
 
@@ -121,7 +125,9 @@ public class Main {
         // disable the UPnP setting (in case you are testing this on a NATted LAN)
         env.getParameters().setString("nat_search_policy", "never");
 
-
+        // TODO:
+        String inputFile = "inputs/soc-LiveJournal1-trim-100.txt";
+//        String inputFile = "inputs/soc-LiveJournal1.txt";
         int BINDPORT = 9001;
         int BOOTPORT = 9001;
         try {
@@ -133,7 +139,7 @@ public class Main {
             InetSocketAddress bootSocketAddr = new InetSocketAddress(bootaddr, BOOTPORT);
 
             // launch our nodes!
-            new Main(BINDPORT, bootSocketAddr, env, numNodes);
+            new Main(BINDPORT, bootSocketAddr, env, numNodes, inputFile);
         } catch (Exception e) {
             e.printStackTrace();
         }
