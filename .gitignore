@@ -2,4 +2,6 @@ classes
 pastry.jar
 /classes/
 .idea
-
+inputs
+.project
+log
