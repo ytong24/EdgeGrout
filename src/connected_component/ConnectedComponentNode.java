@@ -2,14 +2,13 @@ package connected_component;
 
 import connected_component.graph.Partition;
 import connected_component.graph.PartitionPropagationMessage;
+import rice.environment.time.simple.SimpleTimeSource;
 import rice.p2p.commonapi.*;
 import rice.p2p.scribe.*;
 import rice.pastry.PastryNode;
 import rice.pastry.commonapi.PastryIdFactory;
 
-import java.util.Collection;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class ConnectedComponentNode implements ScribeMultiClient, Application {
@@ -24,10 +23,12 @@ public class ConnectedComponentNode implements ScribeMultiClient, Application {
     private long superstepRound;
 
     // the partition in this node
-    private Partition graphPartition;
+    private final Partition graphPartition;
+
+    private final Queue<PartitionPropagationMessage> propagationMessageQueue;
 
     // record how many responses does root receive in a round
-    private AtomicInteger testReceivedMessagesCount = new AtomicInteger(0);
+    private final AtomicInteger testReceivedMessagesCount = new AtomicInteger(0);
 
     public ConnectedComponentNode(PastryNode node) {
         String namePrefix = "ConnectedComponent";
@@ -43,11 +44,14 @@ public class ConnectedComponentNode implements ScribeMultiClient, Application {
 
         this.graphPartition = new Partition();
 
+        this.propagationMessageQueue = new ArrayDeque<>();
+
         this.endpoint.register();
     }
 
     /**
      * Build a part of the graph according to the adjacency list
+     *
      * @param adjacencyList the part of graph that assign to this worker
      */
     public void buildGraphPartition(Map<String, Set<String>> adjacencyList) {
@@ -60,17 +64,27 @@ public class ConnectedComponentNode implements ScribeMultiClient, Application {
      */
     public void startEngine() {
 //        while(true) {
-            // TODO: trigger next super step
+        // TODO: trigger next super step
+        int n = 11;
+        for(int i = 0; i < n; i++) {
             triggerNextSuperStep();
-            // TODO: if all vertices vote for halt, break;
+
+            try {
+                new SimpleTimeSource().sleep(5000);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        // TODO: if all vertices vote for halt, break;
 //        }
     }
 
     public void triggerNextSuperStep() {
         // TODO: use this.scribe to publish super step content
-        System.out.println(LOG_PREFIX + " trigger next super step...");
+        System.out.println(LOG_PREFIX + " trigger next super step " + this.superstepRound + "...");
         SuperStepTriggerContent scribeMessages = new SuperStepTriggerContent(this.endpoint.getLocalNodeHandle(), this.superstepRound + 1);
         this.scribe.publish(this.topic, scribeMessages);
+        this.superstepRound++;
     }
 
     public void subscribe() {
@@ -115,13 +129,22 @@ public class ConnectedComponentNode implements ScribeMultiClient, Application {
     @Override
     public void deliver(Topic topic, ScribeContent content) {
         if (content instanceof SuperStepTriggerContent) {
+            if(isRoot()) return;
+            // TODO: get message
+            // TODO: update
+            long updatedTimes = 0L;
+            System.out.println("PropagationMessageQueue size: " + propagationMessageQueue.size());
+            while (!propagationMessageQueue.isEmpty()) {
+                PartitionPropagationMessage message = propagationMessageQueue.poll();
+                updatedTimes += graphPartition.updatePartitionByPropagationMessage(message);
+            }
+            if (!isRoot()) {
+                System.out.println("UpdatedTimes: " + updatedTimes);
+            }
             // TODO: propagate
             PartitionPropagationMessage propagationMessage = graphPartition.getPartitionPropagationMessage();
             PropagateContent propagatePublishContent = new PropagateContent(this.id, propagationMessage, superstepRound);
             this.scribe.publish(this.topic, propagatePublishContent);
-            // TODO: get message
-
-            // TODO: update
 
             // TODO: vote for halt
 
@@ -160,15 +183,16 @@ public class ConnectedComponentNode implements ScribeMultiClient, Application {
 //            }
         }
 
-        if(content instanceof PropagateContent) {
-            PropagateContent propagateContent = (PropagateContent)content;
-            if(isRoot()) {
-                System.out.println("Receive propagation content from: " + propagateContent.from);
-                System.out.println(propagateContent.message);
-                testReceivedMessagesCount.addAndGet((int) propagateContent.message.getRecordsNum());
-                System.out.println("Total Vertices Number: " + testReceivedMessagesCount.get());
-            }
-            return;
+        if (content instanceof PropagateContent) {
+            if(isRoot()) return;
+            PropagateContent propagateContent = (PropagateContent) content;
+            propagationMessageQueue.offer(propagateContent.message);
+//            if (isRoot()) {
+//                System.out.println("Receive propagation content from: " + propagateContent.from);
+//                System.out.println(propagateContent.message);
+//                testReceivedMessagesCount.addAndGet((int) propagateContent.message.getRecordsNum());
+//                System.out.println("Total Vertices Number: " + testReceivedMessagesCount.get());
+//            }
         }
     }
 

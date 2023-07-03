@@ -22,15 +22,15 @@ public class Main {
 
     /**
      * Based on the rice.tutorial.lesson4.DistTutorial
-     *
+     * <p>
      * This constructor launches numNodes PastryNodes. They will bootstrap to an
      * existing ring if one exists at the specified location, otherwise it will
      * start a new ring.
      *
-     * @param bindport the local port to bind to
+     * @param bindport    the local port to bind to
      * @param bootaddress the IP:port of the node to boot from
-     * @param numNodes the number of nodes to create in this JVM
-     * @param env the Environment
+     * @param numNodes    the number of nodes to create in this JVM
+     * @param env         the Environment
      */
     public Main(int bindport, InetSocketAddress bootaddress, Environment env, int numNodes, String inputFile) throws Exception {
         this.apps = new ArrayList<>();
@@ -42,7 +42,7 @@ public class Main {
 
         // loop to construct the nodes/apps
 
-        for(int i = 0; i < numNodes; i++) {
+        for (int i = 0; i < numNodes; i++) {
             // construct a new node
             PastryNode node = factory.newNode();
 
@@ -58,8 +58,8 @@ public class Main {
                     node.wait(500);
 
                     // abort if can't join
-                    if(node.joinFailed()) {
-                        throw new IOException("Could not join the FreePastry ring.  Reason:"+node.joinFailedReason());
+                    if (node.joinFailed()) {
+                        throw new IOException("Could not join the FreePastry ring.  Reason:" + node.joinFailedReason());
                     }
                 }
             }
@@ -67,13 +67,13 @@ public class Main {
             System.out.println("Finished creating new node: " + node);
         }
 
-        for(ConnectedComponentNode app : this.apps) {
+        for (ConnectedComponentNode app : this.apps) {
             app.subscribe();
         }
 
         // TODO: asynchronously read graph file, get the topology of the whole graph.
         Map<String, Set<String>> graph = GraphBuilder.getAdjacencyListFromFile(inputFile);
-        List<Map<String, Set<String>>> graphPartitions = GraphBuilder.splitGraph(graph, numNodes-1);
+        List<Map<String, Set<String>>> graphPartitions = GraphBuilder.splitGraph(graph, numNodes - 1);
 
         // After subscribe, we need to wait for a while to let the subscribe process finish
         env.getTimeSource().sleep(5000);
@@ -81,8 +81,8 @@ public class Main {
         // check each app is the root or not. if it's not root, assign a part of graph to it.
         ConnectedComponentNode root = null;
         Iterator<Map<String, Set<String>>> graphPartitionIterator = graphPartitions.iterator();
-        for(ConnectedComponentNode app : this.apps) {
-            if(app.isRoot()) root = app;
+        for (ConnectedComponentNode app : this.apps) {
+            if (app.isRoot()) root = app;
             else {
                 app.buildGraphPartition(graphPartitionIterator.next());
             }
@@ -103,7 +103,7 @@ public class Main {
         // WHY WE NEED RECURSION? WE CAN JUST ITERATE THROUGH THE MAP
         // PS: Iterate through a map takes O(n). But it's a tree! Use getRoot will take O(logn).
         Map<NodeHandle, ConnectedComponentNode> appMap = new HashMap<>();
-        for(ConnectedComponentNode app : apps) {
+        for (ConnectedComponentNode app : apps) {
             appMap.put(app.endpoint.getLocalNodeHandle(), app);
         }
 
@@ -126,7 +126,7 @@ public class Main {
         env.getParameters().setString("nat_search_policy", "never");
 
         // TODO:
-        String inputFile = "inputs/soc-LiveJournal1-trim-100.txt";
+        String inputFile = "inputs/soc-LiveJournal1-trim-10000.txt";
 //        String inputFile = "inputs/soc-LiveJournal1.txt";
         int BINDPORT = 9001;
         int BOOTPORT = 9001;

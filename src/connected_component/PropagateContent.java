@@ -2,7 +2,6 @@ package connected_component;
 
 import connected_component.graph.PartitionPropagationMessage;
 import rice.p2p.commonapi.Id;
-import rice.p2p.commonapi.Message;
 import rice.p2p.scribe.ScribeContent;
 
 public class PropagateContent implements ScribeContent {

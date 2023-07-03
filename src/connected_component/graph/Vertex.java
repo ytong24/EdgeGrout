@@ -1,14 +1,12 @@
 package connected_component.graph;
 
-import rice.p2p.commonapi.Id;
-
 import java.util.HashMap;
 import java.util.Map;
 
 public class Vertex {
     private final String vertexId;
+    private final Map<String, Edge> edges;
     private String groupId;
-    private Map<String, Edge> edges;
 
     public Vertex(String vertexId) {
         this.vertexId = vertexId;
@@ -23,11 +21,23 @@ public class Vertex {
 
     public VertexPropagationMessage getVertexPropagationMessage() {
         VertexPropagationMessage message = new VertexPropagationMessage(vertexId);
-        for(Map.Entry<String, Edge> entry : edges.entrySet()) {
+        for (Map.Entry<String, Edge> entry : edges.entrySet()) {
             Vertex target = entry.getValue().getTargetVertex();
             message.addInfo(target.vertexId, groupId);
         }
         return message;
+    }
+
+    /**
+     * @param message the message that is used to update the vertex
+     * @return true if i'm updated. false if nothing change
+     */
+    public boolean updateVertexByPropagationMessage(EdgePropagationRecord message) {
+        // TODO:
+        if (this.getGroupId().compareTo(message.groupId) <= 0) return false;
+        System.out.printf("VertexId: %s, GroupId: %s -> %s\n", this.vertexId, this.groupId, message.groupId);
+        setGroupId(message.groupId);
+        return true;
     }
 
     public String getVertexId() {
@@ -42,20 +52,5 @@ public class Vertex {
         this.groupId = groupId;
     }
 
-    //    public void propagate(Endpoint endpoint, Scribe scribe, Topic topic, long superstepRound) {
-//        for(Map.Entry<String, Edge> entry : edges.entrySet()) {
-//            Vertex target = entry.getValue().getTargetVertex();
-//            sendMessageTo(target, scribe, topic, superstepRound, endpoint);
-//        }
-//    }
-//
-//    private void sendMessageTo(Vertex target, Scribe scribe, Topic topic, long superstepRound, Endpoint endpoint) {
-//        PropagateMsg message = new PropagateMsg(nodeId, target.nodeId, vertexId, target.vertexId, groupId, superstepRound);
-//        if(target.nodeId == null) {
-//            // if i don't know the nodeId of the target vertex, publish the propagate message.
-//            scribe.publish(topic, message);
-//            return;
-//        }
-//        endpoint.route(target.nodeId, message, null);
-//    }
+
 }

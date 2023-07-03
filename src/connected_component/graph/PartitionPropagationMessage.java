@@ -18,7 +18,7 @@ public class PartitionPropagationMessage implements Serializable {
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder("Partition Propagation Message:\n");
-        for(VertexPropagationMessage m : messages) {
+        for (VertexPropagationMessage m : messages) {
             sb.append(m.toString());
         }
         return sb.toString();
