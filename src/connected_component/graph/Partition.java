@@ -1,7 +1,9 @@
 package connected_component.graph;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 public class Partition {
     private final Map<String, Vertex> vertices;   // {vertexId, Vertex}
@@ -33,6 +35,15 @@ public class Partition {
             message.addMessage(v.getVertexPropagationMessage());
         }
         return message;
+    }
+
+    public Set<String> getGroupIds() {
+        Set<String> groupSet = new HashSet<>();
+        for(Map.Entry<String, Vertex> entry : vertices.entrySet()) {
+            Vertex v = entry.getValue();
+            groupSet.add(v.getGroupId());
+        }
+        return groupSet;
     }
 
 

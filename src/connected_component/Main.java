@@ -90,10 +90,11 @@ public class Main {
 
         // TODO: trigger a publish task in the root. wait for the end.
         assert root != null;
-        root.startEngine();
+        root.startEngine(numNodes-1);
 
         // TODO: get the output from the root
-
+        int groupNums = root.getTotalGroupIds().size();
+        System.out.printf("Total number of connected components: %d\n", groupNums);
     }
 
     /**
@@ -126,8 +127,9 @@ public class Main {
         env.getParameters().setString("nat_search_policy", "never");
 
         // TODO:
-        String inputFile = "inputs/soc-LiveJournal1-trim-10000.txt";
-//        String inputFile = "inputs/soc-LiveJournal1.txt";
+        String inputFile = "inputs/soc-LiveJournal1-trim-50000.txt";
+//        String inputFile = "inputs/facebook_combined.txt";
+//        String inputFile = "inputs/ca-GrQc.txt";
         int BINDPORT = 9001;
         int BOOTPORT = 9001;
         try {

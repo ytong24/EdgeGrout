@@ -1,21 +1,21 @@
 package connected_component;
 
-import rice.p2p.commonapi.NodeHandle;
+import rice.p2p.commonapi.Id;
 import rice.p2p.scribe.ScribeContent;
 
 public class SuperStepTriggerContent implements ScribeContent {
 
-    protected NodeHandle from;
+    protected Id from;
 
-    protected long publishRound;
+    protected long superstepRound;
 
-    public SuperStepTriggerContent(NodeHandle from) {
+    public SuperStepTriggerContent(Id from) {
         this(from, -1);
     }
 
-    public SuperStepTriggerContent(NodeHandle from, long publishRound) {
+    public SuperStepTriggerContent(Id from, long superstepRound) {
         this.from = from;
-        this.publishRound = publishRound;
+        this.superstepRound = superstepRound;
     }
 
 }

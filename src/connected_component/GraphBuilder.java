@@ -15,6 +15,7 @@ public class GraphBuilder {
             if (line.startsWith("#")) continue;
 
             String[] splits = line.split("\t");
+//            String[] splits = line.split(" ");    // facebook dataset delimiter
             String u = splits[0], v = splits[1];
             if (graph.get(u) == null) {
                 graph.put(u, new HashSet<>());
