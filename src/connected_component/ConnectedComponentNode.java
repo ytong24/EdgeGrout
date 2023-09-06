@@ -34,7 +34,7 @@ public class ConnectedComponentNode implements ScribeMultiClient, Application {
     // record how many responses does root receive in a round
     private final AtomicInteger testReceivedMessagesCount = new AtomicInteger(0);
 
-    public ConnectedComponentNode(PastryNode node) {
+    public  ConnectedComponentNode(PastryNode node) {
         String namePrefix = "ConnectedComponent";
         this.endpoint = node.buildEndpoint(this, namePrefix + "Instance");
         this.id = this.endpoint.getId();
@@ -42,7 +42,7 @@ public class ConnectedComponentNode implements ScribeMultiClient, Application {
 
         this.scribe = new ScribeImpl(node, namePrefix + "ScribeInstance");
 
-        this.topic = new Topic(new PastryIdFactory(node.getEnvironment()), namePrefix);
+        this.topic = new Topic(new PastryIdFactory(node.getEnvironment()), namePrefix); // topic有单独的id，是对 topic name的hash
 
         this.superstepRound = 0;
 

@@ -23,7 +23,7 @@ public class Vertex {
         VertexPropagationMessage message = new VertexPropagationMessage(vertexId);
         for (Map.Entry<String, Edge> entry : edges.entrySet()) {
             Vertex target = entry.getValue().getTargetVertex();
-            message.addInfo(target.vertexId, groupId);
+            message.addRecord(target.vertexId, groupId);
         }
         return message;
     }

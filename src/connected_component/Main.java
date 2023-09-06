@@ -82,10 +82,11 @@ public class Main {
         ConnectedComponentNode root = null;
         Iterator<Map<String, Set<String>>> graphPartitionIterator = graphPartitions.iterator();
         for (ConnectedComponentNode app : this.apps) {
-            if (app.isRoot()) root = app;
-            else {
-                app.buildGraphPartition(graphPartitionIterator.next());
+            if (app.isRoot()) {
+                root = app;
+                continue;
             }
+            app.buildGraphPartition(graphPartitionIterator.next());
         }
 
         // TODO: trigger a publish task in the root. wait for the end.
@@ -127,9 +128,9 @@ public class Main {
         env.getParameters().setString("nat_search_policy", "never");
 
         // TODO:
-        String inputFile = "inputs/soc-LiveJournal1-trim-50000.txt";
+//        String inputFile = "inputs/soc-LiveJournal1-trim-50000.txt";
 //        String inputFile = "inputs/facebook_combined.txt";
-//        String inputFile = "inputs/ca-GrQc.txt";
+        String inputFile = "inputs/ca-GrQc.txt";
         int BINDPORT = 9001;
         int BOOTPORT = 9001;
         try {
