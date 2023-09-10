@@ -34,7 +34,7 @@ public class ConnectedComponentNode implements ScribeMultiClient, Application {
     // record how many responses does root receive in a round
     private final AtomicInteger testReceivedMessagesCount = new AtomicInteger(0);
 
-    public  ConnectedComponentNode(PastryNode node) {
+    public ConnectedComponentNode(PastryNode node) {
         String namePrefix = "ConnectedComponent";
         this.endpoint = node.buildEndpoint(this, namePrefix + "Instance");
         this.id = this.endpoint.getId();
