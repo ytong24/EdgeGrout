@@ -13,7 +13,7 @@
     <property name="license.file" value="License.txt"/>
     <property name="license.path" value="${license.dir}/${license.file}"/>
     <!-- EDIT THE "VALUE" BELOW TO CHANGE MAIN CLASS-->
-    <property name="main-class" value="connected_component.Main"/>
+    <property name="main-class" value="ucsc.elveslab.edgegrout.Main"/>
 
 
     <!-- Jars that Pretty package needs -->
