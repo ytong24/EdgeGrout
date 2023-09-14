@@ -114,7 +114,7 @@ public class Main {
     }
 
     public static void main(String[] args) {
-        // TODO: print log to make sure scribe work as expectation
+        // BootAddr BootPort BindPort NumNode
         // Loads pastry settings
         Environment env = new Environment();
         // disable the UPnP setting (in case you are testing this on a NATted LAN)
@@ -122,13 +122,16 @@ public class Main {
 
 
 //        int BINDPORT = 9001;
-        int BOOTPORT = 9001;
+//        int BOOTPORT = 9001;
         try {
-            int BINDPORT = Integer.parseInt(args[0]);
+
+            InetAddress bootaddr = InetAddress.getByName(args[0]);
+            int BOOTPORT = Integer.parseInt(args[1]);
 //            int numNodes = 10;
-            int numNodes = Integer.parseInt(args[1]);
-            InetAddress bootaddr = InetAddress.getLocalHost();
-//            InetAddress bootaddr = InetAddress.getByName("10.4.0.13");
+            int BINDPORT = Integer.parseInt(args[2]);
+            int numNodes = Integer.parseInt(args[3]);
+//            InetAddress bootaddr = InetAddress.getLocalHost();
+
             InetSocketAddress bootSocketAddr = new InetSocketAddress(bootaddr, BOOTPORT);
 
             // launch our node!
