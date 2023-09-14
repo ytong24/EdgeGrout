@@ -1,6 +1,7 @@
 package ucsc.elveslab.edgegrout.graphengine;
 
 import ucsc.elveslab.edgegrout.graphengine.graph.Graph;
+import ucsc.elveslab.edgegrout.graphengine.job.JobManager;
 
 
 public class GraphEngine {
@@ -10,6 +11,7 @@ public class GraphEngine {
 
     private GraphEngineNode graphEngineNode;
     private Graph graph;
+    private JobManager jobManager;
 
 
    /** Singleton **/
@@ -34,14 +36,18 @@ public class GraphEngine {
     public void initGraphEngine() {
         // TODO:
         // initialize communication layer: graphEngineNode
-        this.graphEngineNode = new GraphEngineNode(bootAddress, bindPort);
+        this.graphEngineNode = GraphEngineNode.getInstance();
+        this.graphEngineNode.init(bootAddress, bindPort);
 
-        // TODO: initialize graph. First, we build the Topology. Then we create the PropertyManager.
-        this.graph = Graph.getInstance(graphFilePath);
+        // initialize graph. First, we build the Topology. Then we create the PropertyManager.
+        this.graph = Graph.getInstance();
+        this.graph.initGraph(graphFilePath);
 
         // TODO: initialize JobManager.
+        this.jobManager = JobManager.getInstance();
 
         // TODO: create jobs.
+
     }
 
     public void startGraphEngine() {

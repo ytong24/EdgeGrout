@@ -9,21 +9,23 @@ public class Graph {
 
     /** Singleton **/
     private volatile static Graph instance;
-    private Graph(String graphFilePath) {
-        // TODO: fill the constructor
-        this.graphTopology = new GraphTopology(graphFilePath);
-        this.graphPropertyManager = new GraphPropertyManager();
+    private Graph() {
     }
 
-    public static Graph getInstance(String graphFilePath) {
+    public static Graph getInstance() {
         if (instance == null) {
             synchronized (Graph.class) {
                 if (instance == null) {
-                    instance = new Graph(graphFilePath);
+                    instance = new Graph();
                 }
             }
         }
         return instance;
+    }
+
+    public void initGraph(String graphFilePath) {
+        this.graphTopology = new GraphTopology(graphFilePath);
+        this.graphPropertyManager = new GraphPropertyManager();
     }
 
     public GraphPropertyManager getGraphPropertyManager() {
